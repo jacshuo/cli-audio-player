@@ -27,7 +27,7 @@
 ╚═════════════════════════════════════════════════════════════════════════════╝
 ```
 
-[![CI](https://github.com/YOUR_USERNAME/listener-sharp/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/listener-sharp/actions/workflows/ci.yml)
+[![CI](https://github.com/jacshuo/listener-sharp/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/listener-sharp/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/ListenerSharp.svg)](https://www.nuget.org/packages/ListenerSharp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-red.svg)](LICENSE)
 
