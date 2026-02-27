@@ -1,0 +1,56 @@
+name: Auto Version & Tag
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - "**.cs"
+      - "**.csproj"
+      - "**.sln"
+
+permissions:
+  contents: write
+
+jobs:
+  bump-and-tag:
+    name: Bump version & push tag
+    runs-on: ubuntu-latest
+
+    # Skip if this push is itself the version-bump commit (prevents infinite loop)
+    if: "!startsWith(github.event.head_commit.message, 'chore: bump version')"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read current version from csproj
+        id: current
+        run: |
+          VERSION=$(grep -oP '(?<=<Version>)[^<]+' ListenerSharp.csproj)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Bump patch version
+        id: bump
+        run: |
+          CURRENT="${{ steps.current.outputs.version }}"
+          MAJOR=$(echo "$CURRENT" | cut -d. -f1)
+          MINOR=$(echo "$CURRENT" | cut -d. -f2)
+          PATCH=$(echo "$CURRENT" | cut -d. -f3)
+          NEW_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Update version in csproj
+        run: |
+          NEW="${{ steps.bump.outputs.version }}"
+          sed -i "s|<Version>.*</Version>|<Version>$NEW</Version>|" ListenerSharp.csproj
+
+      - name: Commit, tag & push
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ListenerSharp.csproj
+          git commit -m "chore: bump version to ${{ steps.bump.outputs.version }}"
+          git tag "v${{ steps.bump.outputs.version }}"
+          git push
+          git push --tags

@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g. 1.2.0). Leave blank to read from ListenerSharp.csproj."
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -28,9 +34,22 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
-      - name: Extract version from tag
+      - name: Resolve version
         id: ver
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            # Triggered by a tag push
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          elif [[ -n "$INPUT_VERSION" ]]; then
+            # Manual dispatch with explicit version
+            echo "version=$INPUT_VERSION" >> "$GITHUB_OUTPUT"
+          else
+            # Manual dispatch — read from csproj
+            VERSION=$(grep -oP '(?<=<Version>)[^<]+' ListenerSharp.csproj)
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Build
         run: dotnet build ListenerSharp.csproj -c Release
@@ -132,6 +151,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: "v${{ needs.pack.outputs.version }}"
           name: "LISTENER v${{ needs.pack.outputs.version }}"
           body: |
             ## Installation
