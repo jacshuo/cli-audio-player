@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+    "listenersharp": {
+      "version": "1.0.4",
+      "commands": [
+        "listen"
+      ],
+      "rollForward": false
+    }
+  }
+}

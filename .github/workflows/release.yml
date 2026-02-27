@@ -1,0 +1,171 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  # ─── 1. Build & pack the NuGet tool package ──────────────────────────────
+  pack:
+    name: Pack NuGet tool
+    runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install libvlc (required for build on Linux)
+        run: sudo apt-get update && sudo apt-get install -y libvlc-dev
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Extract version from tag
+        id: ver
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: dotnet build ListenerSharp.csproj -c Release
+
+      - name: Pack
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: dotnet pack ListenerSharp.csproj -c Release -p:Version=$VERSION --output ./nupkg
+
+      - name: Upload nupkg artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkg
+          path: nupkg/*.nupkg
+          retention-days: 7
+
+  # ─── 2. Build self-contained binaries for each platform ──────────────────
+  publish:
+    name: Publish (${{ matrix.rid }})
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      matrix:
+        include:
+          - runner: windows-latest
+            rid: win-x64
+            asset_name: listen-win-x64.zip
+          - runner: macos-13  # intel; macos-latest is arm64
+            rid: osx-x64
+            asset_name: listen-osx-x64.tar.gz
+          - runner: macos-latest
+            rid: osx-arm64
+            asset_name: listen-osx-arm64.tar.gz
+          - runner: ubuntu-latest
+            rid: linux-x64
+            asset_name: listen-linux-x64.tar.gz
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install libvlc (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libvlc-dev vlc
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Publish self-contained
+        shell: bash
+        env:
+          RID: ${{ matrix.rid }}
+        run: |
+          dotnet publish ListenerSharp.csproj \
+            -c Release \
+            -r "$RID" \
+            --self-contained true \
+            -p:PackAsTool=false \
+            -o publish
+
+      - name: Archive (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          ASSET_NAME: ${{ matrix.asset_name }}
+        run: Compress-Archive -Path publish/* -DestinationPath "$env:ASSET_NAME"
+
+      - name: Archive (Unix)
+        if: runner.os != 'Windows'
+        env:
+          ASSET_NAME: ${{ matrix.asset_name }}
+        run: tar -czf "$ASSET_NAME" -C publish .
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: ${{ matrix.asset_name }}
+          retention-days: 7
+
+  # ─── 3. Create GitHub Release + push to NuGet.org ────────────────────────
+  release:
+    name: Create GitHub Release
+    needs: [pack, publish]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List artifacts
+        run: find artifacts -type f
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "LISTENER v${{ needs.pack.outputs.version }}"
+          body: |
+            ## Installation
+
+            ### dotnet global tool (recommended)
+            ```bash
+            dotnet tool install -g ListenerSharp
+            listen /path/to/music
+            ```
+
+            ### Self-contained binary (no .NET required)
+            Download the binary for your platform from the assets below, extract, and run `listen`.
+
+            > **Linux users:** system VLC is required → `sudo apt install vlc`
+
+            ---
+            See [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+          generate_release_notes: true
+          files: |
+            artifacts/**/*.nupkg
+            artifacts/**/*.zip
+            artifacts/**/*.tar.gz
+
+      - name: Setup .NET 8 (for NuGet push)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Publish to NuGet.org
+        continue-on-error: true
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          dotnet nuget push artifacts/nupkg/*.nupkg \
+            --api-key "$NUGET_API_KEY" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
