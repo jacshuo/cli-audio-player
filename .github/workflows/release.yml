@@ -77,9 +77,6 @@ jobs:
           - runner: windows-latest
             rid: win-x64
             asset_name: listen-win-x64.zip
-          - runner: macos-13  # intel; macos-latest is arm64
-            rid: osx-x64
-            asset_name: listen-osx-x64.tar.gz
           - runner: macos-latest
             rid: osx-arm64
             asset_name: listen-osx-arm64.tar.gz
