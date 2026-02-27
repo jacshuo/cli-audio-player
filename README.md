@@ -27,7 +27,7 @@
 ╚═════════════════════════════════════════════════════════════════════════════╝
 ```
 
-[![CI](https://github.com/jacshuo/listener-sharp/actions/workflows/ci.yml/badge.svg)](https://github.com/jacshuo/listener-sharp/actions/workflows/ci.yml)
+[![CI](https://github.com/jacshuo/cli-audio-player/actions/workflows/ci.yml/badge.svg)](https://github.com/jacshuo/cli-audio-player/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/ListenerSharp.svg)](https://www.nuget.org/packages/ListenerSharp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-red.svg)](LICENSE)
 
@@ -67,13 +67,13 @@ listen /path/to/music
 
 ### Option 2 — Self-contained binary (no .NET required)
 
-Download the archive for your platform from the [latest release](https://github.com/YOUR_USERNAME/listener-sharp/releases/latest), extract it, and run the `listen` executable directly.
+Download the archive for your platform from the [latest release](https://github.com/jacshuo/cli-audio-player/releases/latest), extract it, and run the `listen` executable directly.
 
 ### Option 3 — Build from source
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/listener-sharp.git
-cd listener-sharp
+git clone https://github.com/jacshuo/cli-audio-player.git
+cd cli-audio-player
 dotnet build ListenerSharp.csproj -c Release
 dotnet run --project ListenerSharp.csproj -- /path/to/music
 ```
